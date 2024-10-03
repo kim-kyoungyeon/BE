@@ -1,106 +1,88 @@
-from models.event_log import EventLog
+#api/services/event_serivce.py
 from extensions import db
 from sqlalchemy.exc import SQLAlchemyError
-from utils.http_status_handler import handle_response, server_error, not_found, bad_request
- 
-  # 수정 후
+from models.event_log import EventLog
+from models.role import Role
+from models.training import Training
+from models.department import Department
+from models.email import Email
+from models.employee import Employee
+from datetime import datetime
+from flask import json
 
 
 
-# Get all event logs
+def camelcase(s):
+    parts = iter(s.split("_"))
+    return next(parts) + "".join(i.title() for i in parts)
+
+def to_camel_case(data):
+    return {camelcase(k): v for k, v in data.items()}
+
+def handle_event_log(training_id, data=None):
+    try:
+        training = Training.query.get(training_id)
+        if not training:
+            return {'error': 'Training not found'}, 404
+
+        event_data = {
+            'training_id': training_id,
+            'department_id': json.dumps(training.dept_target),
+            'timestamp': training.training_start,
+            'action': 'targetSetting',
+            'data': data if data is not None else "agent"
+        }
+
+        existing_event = EventLog.query.filter_by(training_id=training_id).first()
+        
+        if existing_event:
+            for key, value in event_data.items():
+                setattr(existing_event, key, value)
+        else:
+            new_event = EventLog(**event_data)
+            db.session.add(new_event)
+        
+        db.session.commit()
+        return {'message': 'Event log updated or created'}, 200
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return {"error": str(e)}, 500
+    
+
+def handle_multiple_events(training_ids, data=None):
+    results = []
+    for training_id in training_ids:
+        result, status = handle_event_log(training_id, data)
+        results.append({"training_id": training_id, "result": result, "status": status})
+    return results
+
+
+def delete_event_log(id):
+    try:
+        event_log = EventLog.query.get(id)
+        if not event_log:
+            return {'error': 'Event log not found'}, 404
+        
+        db.session.delete(event_log)
+        db.session.commit()
+        return {'message': 'Event log deleted', 'id': id}, 200
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return {"error": str(e)}, 500
+
 def get_all_event_logs():
     try:
         event_logs = EventLog.query.all()
-        result = [
-            {
-                "id": event_log.id,
-                "details": event_log.details,
-                "training_id": event_log.training_id,
-                "employee_id": event_log.employee_id,
-                "department_id": event_log.department_id,
-                "action": event_log.action,
-                "timestamp": event_log.timestamp
-            }
-            for event_log in event_logs
-        ]
-        return handle_response(200, data=result, message="Event logs fetched successfully")
+        return [to_camel_case(log.to_dict()) for log in event_logs], 200
     except SQLAlchemyError as e:
-        return server_error(str(e))
+        return {"error": str(e)}, 500
 
-# Create a new event log
-def create_new_event_log(data):
+def get_event_log_by_id(id):
     try:
-        if not data or not data.get('training_id') or not data.get('employee_id') or not data.get('department_id'):
-            return bad_request("Missing required fields: training_id, employee_id, department_id")
-
-        new_event_log = EventLog(
-            details=data.get('details'),
-            training_id=data['training_id'],
-            employee_id=data['employee_id'],
-            department_id=data['department_id'],
-            action=data['action']
-        )
-        db.session.add(new_event_log)
-        db.session.commit()
-
-        return handle_response(201, data={
-            "id": new_event_log.id,
-            "action": new_event_log.action
-        }, message="Event log created successfully")
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        return server_error(str(e))
-
-# Get event log by ID
-def get_event_log_by_id(event_log_id):
-    try:
-        event_log = EventLog.query.get(event_log_id)
+        event_log = EventLog.query.get(id)
         if not event_log:
-            return not_found(f"Event log with ID {event_log_id} not found")
-
-        return handle_response(200, data={
-            "id": event_log.id,
-            "details": event_log.details,
-            "training_id": event_log.training_id,
-            "employee_id": event_log.employee_id,
-            "department_id": event_log.department_id,
-            "action": event_log.action,
-            "timestamp": event_log.timestamp
-        }, message=f"Event log ID {event_log_id} fetched successfully")
+            return {'error': 'Event log not found'}, 404
+        return to_camel_case(event_log.to_dict()), 200
     except SQLAlchemyError as e:
-        return server_error(str(e))
-
-# Update an event log
-def update_event_log(event_log_id, data):
-    try:
-        event_log = EventLog.query.get(event_log_id)
-        if not event_log:
-            return not_found(f"Event log with ID {event_log_id} not found")
-
-        event_log.details = data.get('details', event_log.details)
-        event_log.action = data.get('action', event_log.action)
-
-        db.session.commit()
-        return handle_response(200, data={
-            "id": event_log.id,
-            "action": event_log.action
-        }, message=f"Event log ID {event_log_id} updated successfully")
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        return server_error(str(e))
-
-# Delete an event log
-def delete_event_log(event_log_id):
-    try:
-        event_log = EventLog.query.get(event_log_id)
-        if not event_log:
-            return not_found(f"Event log with ID {event_log_id} not found")
-
-        db.session.delete(event_log)
-        db.session.commit()
-        return handle_response(200, message=f"Event log ID {event_log_id} deleted successfully")
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        return server_error(str(e))
-
-
+        return {"error": str(e)}, 500

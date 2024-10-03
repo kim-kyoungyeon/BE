@@ -11,7 +11,7 @@ from api.routes.training import  training_bp
 from api.routes.department import  department_bp
 from api.routes.role import  role_bp
 from api.routes.event_log import  event_log_bp
-from api.routes.auth_token import  auth_token_bp
+from api.routes.complete_training import complete_bp 
  
 # def index():
 #     return redirect('/swagger')
@@ -25,7 +25,8 @@ def init_routes():
         (department_bp, '/department'),
         (role_bp, '/role'),
         (event_log_bp, '/eventlog'),
-        (auth_token_bp, '/authtoken')
+        (complete_bp, '/training-c')
+ 
     ]
 
     for route_blueprint, url_prefix in routes:
