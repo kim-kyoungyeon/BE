@@ -12,7 +12,8 @@ from models.complete_train import CompleteTraining
 from models.event_log import EventLog
 from marshmallow_enum import EnumField
 from models.training import TrainingStatus 
- 
+from models.user_event_logs import UserEventLog
+
 import logging
  
 
@@ -224,6 +225,7 @@ class TrainingSchema(SQLAlchemyAutoSchema):
 
     class Meta:
         model = Training
+        include_relationships = True
         include_fk = True
         load_instance = True
         sqla_session = db.session
@@ -261,8 +263,33 @@ class EventLogSchema(Base):
 
     class Meta(Base.Meta):
         model = EventLog
+        include_relationships = True
+        load_instance = True
     
  
+
+class UserEventLogSchema(Base):
+
+
+    id = fields.Int(dump_only=True)
+    employee_id = fields.Int(required=True)
+    training_id = fields.Int(required=True)
+    name = fields.Str(required=True)
+    department_id = fields.Int(required=True)
+    email_id = fields.Str(required=True)
+    event_type = fields.Str()
+    timestamp = fields.DateTime(dump_only=True)
+    data = fields.Str()
+
+    @post_load
+    def make_user_event_log(self, data, **kwargs):
+        return UserEventLog(**data)
+
+    class Meta(Base.Meta):
+        model = UserEventLog
+        include_fk = True
+        sqla_session = db.session
+
  
 
 class CompleteTrainingSchema(Base):
@@ -304,6 +331,7 @@ class CompleteTrainingSchema(Base):
 
     class Meta(Base.Meta):
         model = CompleteTraining
+        include_relationships = True
         include_fk = True
         load_instance = True
         sqla_session = db.session
@@ -354,6 +382,10 @@ event_log_schema = EventLogSchema()
 event_logs_schema = EventLogSchema(many=True)
 complete_training_schema = CompleteTrainingSchema()
 complete_trainings_schema = CompleteTrainingSchema(many=True)
+# 단일 객체와 객체 리스트를 위한 스키마 인스턴스 생성
+user_event_log_schema = UserEventLogSchema()
+user_event_logs_schema = UserEventLogSchema(many=True)
+
 # Export all schemas
 __all__ = [
     'department_schema', 'departments_schema',
@@ -362,5 +394,6 @@ __all__ = [
     'training_schema', 'trainings_schema',
     'email_schema', 'emails_schema',
     'complete_training_schema','complete_trainings_schema',
-    'event_log_schema', 'event_logs_schema'
+    'event_log_schema', 'event_logs_schema',
+    'UserEventLogSchema', 'UserEventLogSchema'
 ]

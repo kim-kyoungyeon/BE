@@ -26,17 +26,14 @@ class EventLog(BaseModel):
     data = db.Column(db.Text, nullable=True, default="")
 
     training = db.relationship('Training', back_populates='event_logs')
-
+ 
     @property
     def department_id_list(self):
         return [int(x) for x in json.loads(self.department_id) if str(x).isdigit()]
-
+    
     @department_id_list.setter
     def department_id_list(self, value):
         self.department_id = json.dumps([str(x) for x in value])
-
- 
- 
 
     def to_dict(self):
         return {

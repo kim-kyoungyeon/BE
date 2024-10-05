@@ -54,8 +54,11 @@ class CompleteTraining(BaseModel):
         back_populates='complete_trainings'
     )    
     status = db.Column(db.Enum(TrainingStatus), default=TrainingStatus.FIN, nullable=False)
+    training_id = db.Column(db.Integer, db.ForeignKey('trainings.id'), nullable=False)
 
     completed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
     
     original_id = db.Column(db.Integer, db.ForeignKey('trainings.id'), nullable=False)
     original_training = db.relationship('Training', back_populates='complete_training', foreign_keys=[original_id])
